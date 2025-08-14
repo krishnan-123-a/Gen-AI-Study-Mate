@@ -1,0 +1,22 @@
+# StudyMate - AI-Powered Educational Platform
+# Production Dependencies
+
+# Web Framework
+streamlit==1.39.0
+
+# PDF Processing
+PyMuPDF==1.23.8
+
+# AI and Machine Learning
+sentence-transformers==3.0.1
+faiss-cpu==1.8.0
+ibm-watsonx-ai==1.1.0
+
+# Data Processing
+numpy==1.24.3
+pandas==2.0.3
+
+# Utilities
+python-dotenv==1.0.0
+tornado==6.3.3
+requests>=2.31.0
