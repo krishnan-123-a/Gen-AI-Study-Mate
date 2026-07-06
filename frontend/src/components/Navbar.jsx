@@ -5,17 +5,14 @@ function Navbar({ currentPage, onNavigate, pages }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const navItems = [
-    { id: pages.HOME, label: 'Home', icon: '🏠' },
-    { id: pages.CHAT, label: 'AI Chat', icon: '💬' },
-    { id: pages.TOPICS, label: 'Topics', icon: '📚' },
-    { id: pages.QUIZ, label: 'Quiz', icon: '🎯' },
+    { id: pages.HOME,       label: 'Home',       icon: '🏠' },
+    { id: pages.CHAT,       label: 'AI Chat',    icon: '💬' },
+    { id: pages.TOPICS,     label: 'Topics',     icon: '📚' },
+    { id: pages.QUIZ,       label: 'Quiz',       icon: '🎯' },
     { id: pages.FLASHCARDS, label: 'Flashcards', icon: '🃏' },
   ];
 
-  const handleNav = (id) => {
-    onNavigate(id);
-    setMenuOpen(false);
-  };
+  const handleNav = (id) => { onNavigate(id); setMenuOpen(false); };
 
   return (
     <nav className="navbar">
@@ -24,12 +21,8 @@ function Navbar({ currentPage, onNavigate, pages }) {
         <span className="brand-name">Gen-AI Study Mate</span>
       </div>
 
-      <button
-        className="hamburger"
-        onClick={() => setMenuOpen(!menuOpen)}
-        aria-label="Toggle menu"
-        aria-expanded={menuOpen}
-      >
+      <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)}
+        aria-label="Toggle menu" aria-expanded={menuOpen}>
         {menuOpen ? '✕' : '☰'}
       </button>
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../api';
+import api from '../api.js';
 import './QuizGenerator.css';
 
 function QuizGenerator() {
@@ -14,12 +14,7 @@ function QuizGenerator() {
 
   const generateQuiz = async () => {
     if (!topic.trim()) return;
-    setLoading(true);
-    setError('');
-    setQuestions([]);
-    setAnswers({});
-    setSubmitted(false);
-
+    setLoading(true); setError(''); setQuestions([]); setAnswers({}); setSubmitted(false);
     try {
       const res = await api.post('/api/quiz/generate', { topic, numQuestions, difficulty });
       setQuestions(res.data.questions || []);
@@ -30,22 +25,14 @@ function QuizGenerator() {
     }
   };
 
-  const selectAnswer = (qId, option) => {
-    if (submitted) return;
-    setAnswers((prev) => ({ ...prev, [qId]: option }));
-  };
-
+  const selectAnswer = (qId, option) => { if (!submitted) setAnswers((prev) => ({ ...prev, [qId]: option })); };
   const submitQuiz = () => setSubmitted(true);
-
-  const getScore = () =>
-    questions.filter((q) => answers[q.id] === q.answer).length;
+  const getScore = () => questions.filter((q) => answers[q.id] === q.answer).length;
 
   const getOptionClass = (q, option) => {
-    if (!submitted) {
-      return answers[q.id] === option ? 'selected' : '';
-    }
+    if (!submitted) return answers[q.id] === option ? 'selected' : '';
     if (option === q.answer) return 'correct';
-    if (answers[q.id] === option && option !== q.answer) return 'wrong';
+    if (answers[q.id] === option) return 'wrong';
     return '';
   };
 
@@ -62,33 +49,19 @@ function QuizGenerator() {
         <div className="quiz-form-row">
           <div className="input-group">
             <label htmlFor="quiz-topic">Topic</label>
-            <input
-              id="quiz-topic"
-              type="text"
-              value={topic}
+            <input id="quiz-topic" type="text" value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. World War II, Python basics, Algebra..."
-            />
+              placeholder="e.g. World War II, Python basics, Algebra..." />
           </div>
           <div className="input-group">
             <label htmlFor="num-questions">Questions</label>
-            <select
-              id="num-questions"
-              value={numQuestions}
-              onChange={(e) => setNumQuestions(Number(e.target.value))}
-            >
-              {[3, 5, 7, 10].map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
+            <select id="num-questions" value={numQuestions} onChange={(e) => setNumQuestions(Number(e.target.value))}>
+              {[3, 5, 7, 10].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
           <div className="input-group">
             <label htmlFor="difficulty">Difficulty</label>
-            <select
-              id="difficulty"
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value)}
-            >
+            <select id="difficulty" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
               <option value="easy">Easy</option>
               <option value="medium">Medium</option>
               <option value="hard">Hard</option>
@@ -113,45 +86,20 @@ function QuizGenerator() {
 
           {questions.map((q, i) => (
             <div key={q.id} className="card question-card">
-              <p className="question-text">
-                <span className="q-num">Q{i + 1}.</span> {q.question}
-              </p>
+              <p className="question-text"><span className="q-num">Q{i + 1}.</span> {q.question}</p>
               <div className="options">
                 {q.options.map((opt) => (
-                  <button
-                    key={opt}
-                    className={`option-btn ${getOptionClass(q, opt)}`}
-                    onClick={() => selectAnswer(q.id, opt)}
-                    disabled={submitted}
-                  >
-                    {opt}
-                  </button>
+                  <button key={opt} className={`option-btn ${getOptionClass(q, opt)}`}
+                    onClick={() => selectAnswer(q.id, opt)} disabled={submitted}>{opt}</button>
                 ))}
               </div>
-              {submitted && answers[q.id] !== q.answer && (
-                <p className="correct-answer">✅ Correct: {q.answer}</p>
-              )}
-              {submitted && q.explanation && (
-                <p className="explanation">💡 {q.explanation}</p>
-              )}
+              {submitted && answers[q.id] !== q.answer && <p className="correct-answer">✅ Correct: {q.answer}</p>}
+              {submitted && q.explanation && <p className="explanation">💡 {q.explanation}</p>}
             </div>
           ))}
 
-          {!submitted && (
-            <button
-              className="btn btn-primary submit-btn"
-              onClick={submitQuiz}
-              disabled={!allAnswered}
-            >
-              Submit Quiz
-            </button>
-          )}
-
-          {submitted && (
-            <button className="btn btn-outline" onClick={generateQuiz}>
-              🔄 New Quiz
-            </button>
-          )}
+          {!submitted && <button className="btn btn-primary submit-btn" onClick={submitQuiz} disabled={!allAnswered}>Submit Quiz</button>}
+          {submitted && <button className="btn btn-outline" onClick={generateQuiz}>🔄 New Quiz</button>}
         </div>
       )}
     </div>
