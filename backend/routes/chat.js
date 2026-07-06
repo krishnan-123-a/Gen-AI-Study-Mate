@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { openai, MODEL } = require('../config/openai');
 const ChatHistory = require('../models/ChatHistory');
+const { isDemoMode, getMockChatReply } = require('../utils/mockResponses');
 
 /**
  * POST /api/chat
  * Body: { message, history, sessionId }
- * Saves conversation to MongoDB, returns { reply, sessionId }
+ * Returns: { reply, sessionId }
  */
 router.post('/', async (req, res) => {
   const { message, history = [], sessionId } = req.body;
@@ -16,29 +17,36 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const messages = [
-      {
-        role: 'system',
-        content: `You are Gen-AI Study Mate, an intelligent and friendly AI tutor.
+    let reply;
+
+    if (isDemoMode()) {
+      // Demo mode — return rich mock reply instantly
+      await new Promise((r) => setTimeout(r, 600)); // small delay for realism
+      reply = getMockChatReply(message);
+    } else {
+      const messages = [
+        {
+          role: 'system',
+          content: `You are Gen-AI Study Mate, an intelligent and friendly AI tutor.
 Your goal is to help students understand complex topics clearly and concisely.
 - Break down difficult concepts into simple explanations.
 - Use examples and analogies where helpful.
 - Encourage curiosity and deeper learning.
 - If asked for a quiz, generate relevant questions.
 - Always be supportive and patient.`,
-      },
-      ...history.slice(-10),
-      { role: 'user', content: message },
-    ];
+        },
+        ...history.slice(-10),
+        { role: 'user', content: message },
+      ];
 
-    const completion = await openai.chat.completions.create({
-      model: MODEL,
-      messages,
-      temperature: 0.7,
-      max_tokens: 1024,
-    });
-
-    const reply = completion.choices[0].message.content;
+      const completion = await openai.chat.completions.create({
+        model: MODEL,
+        messages,
+        temperature: 0.7,
+        max_tokens: 1024,
+      });
+      reply = completion.choices[0].message.content;
+    }
 
     // Persist to MongoDB
     const sid = sessionId || `session_${Date.now()}`;
@@ -63,7 +71,6 @@ Your goal is to help students understand complex topics clearly and concisely.
 
 /**
  * GET /api/chat/history
- * Returns last 10 chat sessions
  */
 router.get('/history', async (req, res) => {
   try {
@@ -80,7 +87,6 @@ router.get('/history', async (req, res) => {
 
 /**
  * GET /api/chat/session/:sessionId
- * Returns messages for a specific session
  */
 router.get('/session/:sessionId', async (req, res) => {
   try {

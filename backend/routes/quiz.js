@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { openai, MODEL } = require('../config/openai');
 const QuizResult = require('../models/QuizResult');
+const { isDemoMode, getMockQuiz } = require('../utils/mockResponses');
 
 /**
  * POST /api/quiz/generate
  * Body: { topic, numQuestions, difficulty }
- * Returns: { questions }
  */
 router.post('/generate', async (req, res) => {
   const { topic, numQuestions = 5, difficulty = 'medium' } = req.body;
@@ -18,7 +18,13 @@ router.post('/generate', async (req, res) => {
   const count = Math.min(Math.max(parseInt(numQuestions) || 5, 1), 15);
 
   try {
-    const prompt = `Generate ${count} multiple-choice quiz questions about "${topic}" at ${difficulty} difficulty.
+    let questions;
+
+    if (isDemoMode()) {
+      await new Promise((r) => setTimeout(r, 800));
+      questions = getMockQuiz(topic, count, difficulty);
+    } else {
+      const prompt = `Generate ${count} multiple-choice quiz questions about "${topic}" at ${difficulty} difficulty.
 Respond ONLY with valid JSON in this exact format:
 {
   "questions": [
@@ -32,16 +38,18 @@ Respond ONLY with valid JSON in this exact format:
   ]
 }`;
 
-    const completion = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 2048,
-      response_format: { type: 'json_object' },
-    });
+      const completion = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 2048,
+        response_format: { type: 'json_object' },
+      });
+      const result = JSON.parse(completion.choices[0].message.content);
+      questions = result.questions;
+    }
 
-    const result = JSON.parse(completion.choices[0].message.content);
-    res.json(result);
+    res.json({ questions });
   } catch (error) {
     console.error('Quiz generate error:', error.message);
     res.status(500).json({ error: 'Failed to generate quiz. Please try again.' });
@@ -50,8 +58,6 @@ Respond ONLY with valid JSON in this exact format:
 
 /**
  * POST /api/quiz/save
- * Body: { topic, difficulty, questions (with userAnswer), score, total }
- * Saves completed quiz result to MongoDB
  */
 router.post('/save', async (req, res) => {
   const { topic, difficulty, questions, score, total } = req.body;
@@ -69,7 +75,6 @@ router.post('/save', async (req, res) => {
       total,
       percentage: Math.round((score / total) * 100),
     });
-
     res.json({ success: true, id: quizResult._id });
   } catch (error) {
     console.error('Quiz save error:', error.message);
@@ -79,7 +84,6 @@ router.post('/save', async (req, res) => {
 
 /**
  * GET /api/quiz/history
- * Returns last 10 quiz results
  */
 router.get('/history', async (req, res) => {
   try {

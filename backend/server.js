@@ -26,6 +26,7 @@ app.use('/api/chat',       chatRoutes);
 app.use('/api/topics',     topicRoutes);
 app.use('/api/quiz',       quizRoutes);
 app.use('/api/flashcards', flashcardRoutes);
+app.use('/api/status',     require('./routes/status'));
 
 // Serve React frontend in production
 if (process.env.NODE_ENV === 'production') {

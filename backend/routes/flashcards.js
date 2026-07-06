@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { openai, MODEL } = require('../config/openai');
 const FlashcardSet = require('../models/FlashcardSet');
+const { isDemoMode, getMockFlashcards } = require('../utils/mockResponses');
 
 /**
  * POST /api/flashcards/generate
  * Body: { topic, numCards }
- * Generates flashcards via AI and saves to MongoDB
  */
 router.post('/generate', async (req, res) => {
   const { topic, numCards = 10 } = req.body;
@@ -18,7 +18,13 @@ router.post('/generate', async (req, res) => {
   const count = Math.min(Math.max(parseInt(numCards) || 10, 1), 20);
 
   try {
-    const prompt = `Create ${count} study flashcards for the topic "${topic}".
+    let flashcards;
+
+    if (isDemoMode()) {
+      await new Promise((r) => setTimeout(r, 700));
+      flashcards = getMockFlashcards(topic, count);
+    } else {
+      const prompt = `Create ${count} study flashcards for the topic "${topic}".
 Each flashcard should have a clear question or term on the front and a concise answer or definition on the back.
 Respond ONLY with valid JSON in this exact format:
 {
@@ -31,24 +37,25 @@ Respond ONLY with valid JSON in this exact format:
   ]
 }`;
 
-    const completion = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.6,
-      max_tokens: 1500,
-      response_format: { type: 'json_object' },
-    });
-
-    const result = JSON.parse(completion.choices[0].message.content);
+      const completion = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.6,
+        max_tokens: 1500,
+        response_format: { type: 'json_object' },
+      });
+      const result = JSON.parse(completion.choices[0].message.content);
+      flashcards = result.flashcards;
+    }
 
     // Auto-save to MongoDB
     const saved = await FlashcardSet.create({
       topic,
-      flashcards: result.flashcards,
-      numCards: result.flashcards.length,
+      flashcards,
+      numCards: flashcards.length,
     });
 
-    res.json({ ...result, setId: saved._id });
+    res.json({ flashcards, setId: saved._id });
   } catch (error) {
     console.error('Flashcard generate error:', error.message);
     res.status(500).json({ error: 'Failed to generate flashcards. Please try again.' });
@@ -57,7 +64,6 @@ Respond ONLY with valid JSON in this exact format:
 
 /**
  * GET /api/flashcards/history
- * Returns last 10 saved flashcard sets
  */
 router.get('/history', async (req, res) => {
   try {
@@ -74,7 +80,6 @@ router.get('/history', async (req, res) => {
 
 /**
  * GET /api/flashcards/:id
- * Returns a saved flashcard set by ID
  */
 router.get('/:id', async (req, res) => {
   try {
