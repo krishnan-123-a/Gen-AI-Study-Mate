@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { openai, MODEL } = require('../config/openai');
+const ChatHistory = require('../models/ChatHistory');
 
 /**
  * POST /api/chat
- * Body: { message: string, history: [{role, content}] }
- * Returns: { reply: string }
+ * Body: { message, history, sessionId }
+ * Saves conversation to MongoDB, returns { reply, sessionId }
  */
 router.post('/', async (req, res) => {
-  const { message, history = [] } = req.body;
+  const { message, history = [], sessionId } = req.body;
 
   if (!message || message.trim() === '') {
     return res.status(400).json({ error: 'Message is required.' });
@@ -26,7 +27,7 @@ Your goal is to help students understand complex topics clearly and concisely.
 - If asked for a quiz, generate relevant questions.
 - Always be supportive and patient.`,
       },
-      ...history.slice(-10), // keep last 10 messages for context
+      ...history.slice(-10),
       { role: 'user', content: message },
     ];
 
@@ -38,10 +39,69 @@ Your goal is to help students understand complex topics clearly and concisely.
     });
 
     const reply = completion.choices[0].message.content;
-    res.json({ reply });
+
+    // Persist to MongoDB
+    const sid = sessionId || `session_${Date.now()}`;
+    const newMessages = [
+      ...history,
+      { role: 'user', content: message },
+      { role: 'assistant', content: reply },
+    ];
+
+    await ChatHistory.findOneAndUpdate(
+      { sessionId: sid },
+      { sessionId: sid, messages: newMessages },
+      { upsert: true, new: true }
+    );
+
+    res.json({ reply, sessionId: sid });
   } catch (error) {
     console.error('Chat error:', error.message);
     res.status(500).json({ error: 'Failed to get a response. Please try again.' });
+  }
+});
+
+/**
+ * GET /api/chat/history
+ * Returns last 10 chat sessions
+ */
+router.get('/history', async (req, res) => {
+  try {
+    const sessions = await ChatHistory.find()
+      .sort({ updatedAt: -1 })
+      .limit(10)
+      .select('sessionId messages updatedAt');
+    res.json({ sessions });
+  } catch (error) {
+    console.error('Chat history error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch chat history.' });
+  }
+});
+
+/**
+ * GET /api/chat/session/:sessionId
+ * Returns messages for a specific session
+ */
+router.get('/session/:sessionId', async (req, res) => {
+  try {
+    const session = await ChatHistory.findOne({ sessionId: req.params.sessionId });
+    if (!session) return res.status(404).json({ error: 'Session not found.' });
+    res.json({ messages: session.messages });
+  } catch (error) {
+    console.error('Session fetch error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch session.' });
+  }
+});
+
+/**
+ * DELETE /api/chat/session/:sessionId
+ */
+router.delete('/session/:sessionId', async (req, res) => {
+  try {
+    await ChatHistory.deleteOne({ sessionId: req.params.sessionId });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete session.' });
   }
 });
 

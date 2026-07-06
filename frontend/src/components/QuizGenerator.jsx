@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../api.js';
 import './QuizGenerator.css';
 
@@ -11,6 +11,21 @@ function QuizGenerator() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    if (showHistory) fetchHistory();
+  }, [showHistory]);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await api.get('/api/quiz/history');
+      setHistory(res.data.results || []);
+    } catch {
+      setHistory([]);
+    }
+  };
 
   const generateQuiz = async () => {
     if (!topic.trim()) return;
@@ -26,7 +41,28 @@ function QuizGenerator() {
   };
 
   const selectAnswer = (qId, option) => { if (!submitted) setAnswers((prev) => ({ ...prev, [qId]: option })); };
-  const submitQuiz = () => setSubmitted(true);
+
+  const submitQuiz = async () => {
+    setSubmitted(true);
+    const score = questions.filter((q) => answers[q.id] === q.answer).length;
+    // Save to MongoDB
+    try {
+      await api.post('/api/quiz/save', {
+        topic, difficulty,
+        questions: questions.map((q) => ({
+          ...q,
+          userAnswer: answers[q.id] || null,
+          correct: answers[q.id] === q.answer,
+        })),
+        score,
+        total: questions.length,
+      });
+    } catch {
+      // Non-critical — quiz is still usable even if save fails
+      console.warn('Quiz save failed');
+    }
+  };
+
   const getScore = () => questions.filter((q) => answers[q.id] === q.answer).length;
 
   const getOptionClass = (q, option) => {
@@ -37,6 +73,8 @@ function QuizGenerator() {
   };
 
   const allAnswered = questions.length > 0 && questions.every((q) => answers[q.id]);
+  const formatDate = (iso) => new Date(iso).toLocaleDateString();
+  const pctColor = (p) => p >= 80 ? '#10b981' : p >= 50 ? '#f59e0b' : '#ef4444';
 
   return (
     <div className="quiz-generator">
@@ -68,10 +106,40 @@ function QuizGenerator() {
             </select>
           </div>
         </div>
-        <button className="btn btn-primary" onClick={generateQuiz} disabled={loading || !topic.trim()}>
-          {loading ? <><span className="spinner" /> Generating...</> : '🎲 Generate Quiz'}
-        </button>
+        <div className="form-actions">
+          <button className="btn btn-primary" onClick={generateQuiz} disabled={loading || !topic.trim()}>
+            {loading ? <><span className="spinner" /> Generating...</> : '🎲 Generate Quiz'}
+          </button>
+          <button className="btn btn-outline" onClick={() => setShowHistory(!showHistory)}>
+            📊 {showHistory ? 'Hide History' : 'Past Results'}
+          </button>
+        </div>
       </div>
+
+      {/* Past Results Panel */}
+      {showHistory && (
+        <div className="card history-panel">
+          <h3>📊 Past Quiz Results</h3>
+          {history.length === 0
+            ? <p className="no-data">No quiz results saved yet.</p>
+            : <div className="history-list">
+                {history.map((r, i) => (
+                  <div key={i} className="history-item">
+                    <div className="history-topic">{r.topic}</div>
+                    <div className="history-meta">
+                      <span className="diff-badge diff-{r.difficulty}">{r.difficulty}</span>
+                      <span>{formatDate(r.createdAt)}</span>
+                    </div>
+                    <div className="history-score">
+                      <span style={{ color: pctColor(r.percentage), fontWeight: 700 }}>{r.percentage}%</span>
+                      <span className="score-detail">{r.score}/{r.total}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      )}
 
       {error && <div className="error-msg">{error}</div>}
 
@@ -79,8 +147,9 @@ function QuizGenerator() {
         <div className="quiz-questions">
           {submitted && (
             <div className="score-banner">
-              🏆 Score: {getScore()} / {questions.length}
+              🏆 Score: {getScore()} / {questions.length} ({Math.round((getScore()/questions.length)*100)}%)
               {getScore() === questions.length && ' — Perfect! 🎉'}
+              <div className="score-saved">✅ Result saved to MongoDB</div>
             </div>
           )}
 

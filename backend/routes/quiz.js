@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { openai, MODEL } = require('../config/openai');
+const QuizResult = require('../models/QuizResult');
 
 /**
  * POST /api/quiz/generate
- * Body: { topic: string, numQuestions: number, difficulty: 'easy'|'medium'|'hard' }
- * Returns: { questions: [{id, question, options, answer, explanation}] }
+ * Body: { topic, numQuestions, difficulty }
+ * Returns: { questions }
  */
 router.post('/generate', async (req, res) => {
   const { topic, numQuestions = 5, difficulty = 'medium' } = req.body;
@@ -44,6 +45,52 @@ Respond ONLY with valid JSON in this exact format:
   } catch (error) {
     console.error('Quiz generate error:', error.message);
     res.status(500).json({ error: 'Failed to generate quiz. Please try again.' });
+  }
+});
+
+/**
+ * POST /api/quiz/save
+ * Body: { topic, difficulty, questions (with userAnswer), score, total }
+ * Saves completed quiz result to MongoDB
+ */
+router.post('/save', async (req, res) => {
+  const { topic, difficulty, questions, score, total } = req.body;
+
+  if (!topic || !questions || score === undefined || !total) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  try {
+    const quizResult = await QuizResult.create({
+      topic,
+      difficulty: difficulty || 'medium',
+      questions,
+      score,
+      total,
+      percentage: Math.round((score / total) * 100),
+    });
+
+    res.json({ success: true, id: quizResult._id });
+  } catch (error) {
+    console.error('Quiz save error:', error.message);
+    res.status(500).json({ error: 'Failed to save quiz result.' });
+  }
+});
+
+/**
+ * GET /api/quiz/history
+ * Returns last 10 quiz results
+ */
+router.get('/history', async (req, res) => {
+  try {
+    const results = await QuizResult.find()
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select('topic difficulty score total percentage createdAt');
+    res.json({ results });
+  } catch (error) {
+    console.error('Quiz history error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch quiz history.' });
   }
 });
 
