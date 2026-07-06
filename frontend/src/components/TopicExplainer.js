@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import './TopicExplainer.css';
 
 function TopicExplainer() {
@@ -16,7 +16,7 @@ function TopicExplainer() {
     setResult(null);
 
     try {
-      const res = await axios.post('/api/topics/explain', { topic, level });
+      const res = await api.post('/api/topics/explain', { topic, level });
       setResult(res.data);
     } catch {
       setError('Failed to get explanation. Please try again.');

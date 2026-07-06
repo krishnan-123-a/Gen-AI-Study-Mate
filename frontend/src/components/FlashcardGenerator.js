@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import './FlashcardGenerator.css';
 
 function FlashcardGenerator() {
@@ -21,7 +21,7 @@ function FlashcardGenerator() {
     setCurrentIndex(0);
 
     try {
-      const res = await axios.post('/api/flashcards/generate', { topic, numCards });
+      const res = await api.post('/api/flashcards/generate', { topic, numCards });
       setCards(res.data.flashcards || []);
     } catch {
       setError('Failed to generate flashcards. Please try again.');

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import './ChatBot.css';
 
 function ChatBot() {
@@ -29,7 +29,7 @@ function ChatBot() {
 
     try {
       const history = updatedMessages.slice(1).map(({ role, content }) => ({ role, content }));
-      const res = await axios.post('/api/chat', { message: text, history });
+      const res = await api.post('/api/chat', { message: text, history });
       setMessages((prev) => [...prev, { role: 'assistant', content: res.data.reply }]);
     } catch {
       setMessages((prev) => [

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import './QuizGenerator.css';
 
 function QuizGenerator() {
@@ -21,7 +21,7 @@ function QuizGenerator() {
     setSubmitted(false);
 
     try {
-      const res = await axios.post('/api/quiz/generate', { topic, numQuestions, difficulty });
+      const res = await api.post('/api/quiz/generate', { topic, numQuestions, difficulty });
       setQuestions(res.data.questions || []);
     } catch {
       setError('Failed to generate quiz. Please try again.');

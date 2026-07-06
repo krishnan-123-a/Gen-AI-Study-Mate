@@ -1,0 +1,23 @@
+services:
+  # Backend API
+  - type: web
+    name: gen-ai-study-mate-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: node backend/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false   # You fill this in on the Render dashboard
+
+  # Frontend React app
+  - type: web
+    name: gen-ai-study-mate
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: REACT_APP_API_URL
+        sync: false   # Set this to your backend URL after deploying it
